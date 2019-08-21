@@ -2,6 +2,11 @@
 
 No-configuration connections for redis-cli to Redis TLS services.
 
+# Pre-requisites
+
+* Install stunnel `brew install stunnel`
+* Connect to VPN
+
 ## Use
 
 To run stunredis.sh:
