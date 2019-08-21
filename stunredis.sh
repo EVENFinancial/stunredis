@@ -17,7 +17,7 @@
 #    limitations under the License.
 
 DATABASE_URL=$1
-LOCALPORT=${2:-6830}
+LOCALPORT=${2:-6379}
 
 # This is the location of the validation chain file
 lechain=./lechain.pem
@@ -27,15 +27,8 @@ lechain=./lechain.pem
 proto="`echo $DATABASE_URL | grep '://' | sed -e's,^\(.*://\).*,\1,g'`"
 # remove the protocol
 url=`echo $DATABASE_URL | sed -e s,$proto,,g`
-# extract the user and password (if any)
-userpass="`echo $url | grep @ | cut -d@ -f1`"
-pass=`echo $userpass | grep : | cut -d: -f2`
-if [ -n "$pass" ]; then
-    user=`echo $userpass | grep : | cut -d: -f1`
-else
-    user=$userpass
-fi
-hostport=`echo $url | sed -e s,$userpass@,,g | cut -d/ -f1`
+
+hostport=`echo $url | cut -d/ -f1`
 port=`echo $hostport | grep : | cut -d: -f2`
 if [ -n "$port" ]; then
     host=`echo $hostport | grep : | cut -d: -f1`
@@ -43,16 +36,22 @@ else
     host=$hostport
 fi
 
+echo $hostport
+
 # Now we create our configuration file as a variable
 stunnelconf=""
 stunnelconf+=$"foreground=yes\n" 
+stunnelconf+=$"pid=/usr/local/var/run/stunnel.pid\n"
+stunnelconf+=$"debug=7\n"
+stunnelconf+=$"delay=yes\n"
+stunnelconf+=$"options=NO_SSLv2\n"
+stunnelconf+=$"options=NO_SSLv3\n"
 stunnelconf+=$"[redis-cli]\n"
 stunnelconf+=$"client=yes\n"
 stunnelconf+=$"accept=127.0.0.1:$LOCALPORT\n"
-stunnelconf+=$"verifyChain=yes\n"
-stunnelconf+=$"checkHost=$host\n"
-stunnelconf+=$"CAfile=$lechain\n"
 stunnelconf+=$"connect=$hostport\n"
+
+echo $stunnelconf
 
 # We expand that out in echo and feed the result to stunnel
 # which is set to take its configuration from a file descriptor
@@ -60,13 +59,9 @@ stunnelconf+=$"connect=$hostport\n"
 
 echo -e $stunnelconf | stunnel -fd 0 &
 
-# Grab the pid
-stunnelpid=$!
 # Sleep a moment to let the connection establish
 sleep 1 
 # Now call redis-cli for the user to interact with
-redis-cli -p $LOCALPORT -a ${pass}
-# Once they leave that, kill the stunnel
-kill $stunnelpid
+redis-cli -p $LOCALPORT
 
-
+pkill stunnel
