@@ -17,7 +17,7 @@
 #    limitations under the License.
 
 DATABASE_URL=$1
-LOCALPORT=${2:-6379}
+LOCALPORT=${2:-6479}
 
 # This is the location of the validation chain file
 lechain=./lechain.pem
